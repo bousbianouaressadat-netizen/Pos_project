@@ -1,0 +1,88 @@
+:root {
+  /* --- Colors --- */
+  --color-primary: #1B2A4A;
+  --color-primary-hover: #2C4270;
+  --color-accent: #2E86DE;
+  --color-success: #1B9E5A;
+  --color-danger: #D33F3F;
+  --color-warning: #E08E1C;
+
+  --color-bg-page: #F5F7FA;
+  --color-bg-card: #FFFFFF;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-border: #E5E9F0;
+
+  --color-success-bg: #E8F7EE;
+  --color-danger-bg: #FBEAEA;
+  --color-warning-bg: #FCF1E0;
+  --color-accent-bg: #EAF3FD;
+
+  /* --- Typography --- */
+  --font-ar: 'Cairo', sans-serif;
+  --font-en: 'Inter', sans-serif;
+
+  --text-caption: 12px;
+  --text-body: 14px;
+  --text-body-lg: 16px;
+  --text-h3: 18px;
+  --text-h2: 22px;
+  --text-h1: 26px;
+
+  /* --- Spacing (مقياس 4px) --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* --- Radius / Shadow --- */
+  --radius-card: 8px;
+  --radius-input: 6px;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* --- Layout --- */
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 60px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ar);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* --- Focus visibility (accessibility) --- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
