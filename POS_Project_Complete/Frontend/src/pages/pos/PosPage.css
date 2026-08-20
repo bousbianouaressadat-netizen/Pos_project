@@ -126,3 +126,28 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.pos-page__load-error {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--color-danger);
+  font-size: var(--text-body-lg);
+}
+
+.pos-page__submit-error {
+  color: var(--color-danger);
+  font-size: var(--text-caption);
+  text-align: center;
+}
+
+.pos-page__submitting-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-h3);
+  font-weight: 600;
+  z-index: 200;
+}

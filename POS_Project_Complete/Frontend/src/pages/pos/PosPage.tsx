@@ -5,13 +5,28 @@ import Cart from '../../shared/components/pos/Cart';
 import PaymentModal, { PaymentMethod } from '../../shared/components/pos/PaymentModal';
 import CustomerSelector, { CustomerOption } from '../../shared/components/pos/CustomerSelector';
 import { CartLine, cartLineTotal } from '../../shared/components/pos/cartTypes';
-import { mockCategories, mockProducts, PosProduct } from '../../shared/services/mockData/posMock';
+import LoadingState from '../../shared/components/data/LoadingState';
+import {
+  fetchPosProducts,
+  fetchPosCategories,
+  fetchProductByBarcode,
+  PosProduct,
+  PosCategory,
+} from '../../shared/services/api/productsService';
+import { fetchDefaultWarehouse } from '../../shared/services/api/warehousesService';
+import { createSaleInvoice } from '../../shared/services/api/salesService';
 import { usePermissions } from '../../shared/hooks/usePermissions';
 import './PosPage.css';
 
 export default function PosPage() {
   const { has } = usePermissions();
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const [products, setProducts] = useState<PosProduct[]>([]);
+  const [categories, setCategories] = useState<PosCategory[]>([]);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -20,9 +35,22 @@ export default function PosPage() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [heldSales, setHeldSales] = useState<CartLine[][]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const filteredProducts = mockProducts.filter((p) => {
-    const matchesCategory = activeCategory === 'all' || p.categoryId === activeCategory;
+  useEffect(() => {
+    Promise.all([fetchPosProducts(), fetchPosCategories(), fetchDefaultWarehouse()])
+      .then(([productsRes, categoriesRes, warehouseRes]) => {
+        setProducts(productsRes);
+        setCategories(categoriesRes);
+        setWarehouseId(warehouseRes?.warehouseId ?? null);
+      })
+      .catch(() => setLoadError('تعذّر تحميل المنتجات — تحقق من رابط الـ API واتصال الخادم'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredProducts = products.filter((p) => {
+    const matchesCategory = activeCategory === 'all' || p.categoryNameAR === activeCategory;
     const matchesSearch = p.nameAR.includes(search) || p.sku.includes(search);
     return matchesCategory && matchesSearch;
   });
@@ -38,9 +66,7 @@ export default function PosPage() {
     setLines((prev) => {
       const existing = prev.find((l) => l.productId === product.productId);
       if (existing) {
-        return prev.map((l) =>
-          l.productId === product.productId ? { ...l, qty: l.qty + 1 } : l
-        );
+        return prev.map((l) => (l.productId === product.productId ? { ...l, qty: l.qty + 1 } : l));
       }
       return [
         ...prev,
@@ -50,8 +76,8 @@ export default function PosPage() {
     setSearch('');
   }
 
-  function handleBarcodeSubmit(code: string) {
-    const found = mockProducts.find((p) => p.sku === code);
+  async function handleBarcodeSubmit(code: string) {
+    const found = products.find((p) => p.sku === code) ?? (await fetchProductByBarcode(code));
     if (found) addProduct(found);
   }
 
@@ -90,14 +116,35 @@ export default function PosPage() {
     setCustomer(null);
   }
 
-  function confirmPayment(method: PaymentMethod, paidAmount: number) {
-    // TODO(API): POST /api/sales/invoices بالبيانات الحقيقية (customerId, lines, paymentMethod, paidAmount, status: "Completed")
-    setShowPaymentModal(false);
-    setLines([]);
-    setCustomer(null);
+  async function confirmPayment(method: PaymentMethod, paidAmount: number) {
+    if (!warehouseId) {
+      setSubmitError('لا يوجد مستودع افتراضي — راجع إعدادات المؤسسة');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await createSaleInvoice({
+        customerId: customer?.customerId ?? null,
+        warehouseId,
+        lines,
+        paymentMethod: method,
+        paidAmount,
+        status: 'Completed',
+      });
+
+      setShowPaymentModal(false);
+      setLines([]);
+      setCustomer(null);
+    } catch {
+      setSubmitError('فشل إنشاء الفاتورة — تحقق من الاتصال بالخادم وحاول مجددًا');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  // --- اختصارات لوحة المفاتيح ---
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
@@ -111,13 +158,16 @@ export default function PosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines]);
 
+  if (loading) return <LoadingState message="جاري تحميل نقطة البيع..." />;
+  if (loadError) return <div className="pos-page__load-error">{loadError}</div>;
+
   return (
     <div className="pos-page">
       <section className="pos-page__catalog">
         <ProductSearch ref={searchRef} value={search} onChange={setSearch} onBarcodeSubmit={handleBarcodeSubmit} />
 
         <div className="pos-page__categories">
-          {mockCategories.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.categoryId}
               className={`pos-page__category-btn ${activeCategory === cat.categoryId ? 'pos-page__category-btn--active' : ''}`}
@@ -130,7 +180,11 @@ export default function PosPage() {
 
         <div className="pos-page__products-grid">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.productId} product={product} onAdd={addProduct} />
+            <ProductCard
+              key={product.productId}
+              product={{ productId: product.productId, sku: product.sku, nameAR: product.nameAR, price: product.price, taxRate: product.taxRate, categoryId: '', stock: 0, imageEmoji: '📦' }}
+              onAdd={() => addProduct(product)}
+            />
           ))}
         </div>
       </section>
@@ -162,6 +216,8 @@ export default function PosPage() {
             <span>{total.toLocaleString()} دج</span>
           </div>
         </div>
+
+        {submitError && <p className="pos-page__submit-error">{submitError}</p>}
 
         <div className="pos-page__actions">
           <button className="pos-page__action-btn" onClick={holdSale} disabled={lines.length === 0}>
@@ -196,6 +252,8 @@ export default function PosPage() {
           onConfirm={confirmPayment}
         />
       )}
+
+      {submitting && <div className="pos-page__submitting-overlay">جاري إنشاء الفاتورة...</div>}
     </div>
   );
 }

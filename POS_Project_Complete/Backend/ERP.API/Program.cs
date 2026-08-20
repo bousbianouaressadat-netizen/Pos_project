@@ -92,8 +92,10 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
 {
+    // ⚠️ AllowAnyOrigin مؤقت لبيئة التطوير فقط (Codespaces يعطي رابط فرعي مختلف كل جلسة).
+    // قبل النشر الفعلي عند العميل، استبدلها بـ WithOrigins(رابط محدد) للأمان.
     options.AddPolicy("AllowLocalFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod());
 });

@@ -1,29 +1,20 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { SessionUser } from './authTypes';
+import { getToken } from './apiClient';
 
 interface SessionContextValue {
   user: SessionUser | null;
   setUser: (user: SessionUser | null) => void;
+  isAuthenticated: boolean;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  // بيانات تجريبية (Mock) مؤقتًا — تُستبدل لاحقًا بنتيجة POST /api/auth/login الحقيقية
-  const [user, setUser] = useState<SessionUser | null>({
-    userId: 'mock-user-1',
-    username: 'admin',
-    fullName: 'مدير النظام',
-    roles: ['Administrator'],
-    permissions: [
-      'CanSell', 'CanDiscount', 'CanChangePrice', 'CanDeleteSale', 'CanReturn',
-      'CanViewCost', 'CanViewProfit', 'CanModifyStock', 'CanCloseCash',
-      'CanManageUsers', 'CanViewReports'
-    ]
-  });
+  const [user, setUser] = useState<SessionUser | null>(null);
 
   return (
-    <SessionContext.Provider value={{ user, setUser }}>
+    <SessionContext.Provider value={{ user, setUser, isAuthenticated: !!user || !!getToken() }}>
       {children}
     </SessionContext.Provider>
   );
